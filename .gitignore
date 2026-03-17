@@ -1,0 +1,18 @@
+# Generated files
+*.stl
+*.step
+*.png
+*.html
+
+# OS
+.DS_Store
+__pycache__/
+*.pyc
+
+# Claude
+.claude/
+
+# Extracted archives
+cadquery-3dprint/
+AGENT_BRIEFING.md
+cadquery-3dprint.tar.gz
