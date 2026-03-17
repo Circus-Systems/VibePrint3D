@@ -1,8 +1,24 @@
 """
-Pi Zero 2W Waterproof Housing — Marine Grade
+Pi Zero 2W Waterproof Housing — Marine Grade (Multi-Material)
 Two-piece enclosure for Raspberry Pi Zero 2W.
 Designed for bulkhead mounting on S/V Circus.
-Seal with marine silicone (3M 5200) between mating faces.
+
+SEALING: Crush-seal TPU gasket printed directly into the base rim using
+multi-material (Bambu AMS). No silicone needed.
+
+The gasket uses a RAISED RIDGE cross-section — a tall, narrow bead that
+concentrates clamping force onto a small contact area. This is critical
+because Bambu TPU 68D is Shore 68D (semi-rigid, like a hard skateboard
+wheel), so a flat gasket would not deform enough to seal. The ridge
+crushes ~0.3mm under bolt torque, creating high surface pressure for a
+reliable seal despite the stiff material.
+
+PRINT SETUP (Bambu Lab P2S with AMS):
+  Filament 1: PETG (body, lid)
+  Filament 2: Bambu TPU 68D (gasket) — 220-240°C nozzle, 30-35°C bed
+  Nozzle: 0.4mm (TPU 68D is NOT compatible with 0.2mm nozzle)
+  Import all 3 STLs into slicer, assign materials, print as one job.
+
 All dimensions in mm.
 """
 import cadquery as cq
@@ -23,6 +39,18 @@ LID_THICKNESS = 4.0          # lid plate thickness
 LID_LIP_DEPTH = 2.5          # lid lip extends into base cavity
 LID_LIP_GAP = 0.3            # clearance between lip and cavity wall
 CORNER_RADIUS = 2.0          # fillet radius on all corners
+
+# TPU Crush-Seal Gasket (printed in-place via AMS multi-material)
+# Bambu TPU 68D — Shore 68D (semi-rigid), 220-240°C nozzle, AMS compatible
+# DESIGN NOTE: Shore 68D is very stiff for a seal. We use a raised-ridge
+# cross-section (1.2mm wide base, 0.8mm proud) so the narrow contact line
+# generates high surface pressure under M3 bolt clamping. The ridge crushes
+# ~0.3mm to form the seal. A flat gasket at this hardness would NOT seal.
+GASKET_WIDTH = 1.2           # ridge base width (narrow = higher pressure)
+GASKET_GROOVE_W = 1.6        # groove width (0.2mm clearance each side)
+GASKET_DEPTH = 1.2           # groove depth cut into base rim
+GASKET_PROUD = 0.8           # ridge height above rim (crush zone)
+GASKET_INSET = 1.5           # inset from outer wall edge (centers on rim)
 
 # Mounting flange
 FLANGE_EXT = 8.0             # extension beyond body each side
@@ -72,6 +100,19 @@ LIP_WALL = 2.0
 FLANGE_L = EXT_L + 2 * FLANGE_EXT           # 93
 FLANGE_W = EXT_W + 2 * FLANGE_EXT           # 58
 
+# Gasket groove rectangle (centered on wall rim)
+GROOVE_OUTER_L = EXT_L - 2 * GASKET_INSET
+GROOVE_OUTER_W = EXT_W - 2 * GASKET_INSET
+GROOVE_INNER_L = GROOVE_OUTER_L - 2 * GASKET_GROOVE_W
+GROOVE_INNER_W = GROOVE_OUTER_W - 2 * GASKET_GROOVE_W
+
+# Gasket ridge (narrower than groove — sits centered in it)
+RIDGE_OFFSET = (GASKET_GROOVE_W - GASKET_WIDTH) / 2  # 0.2mm each side
+RIDGE_OUTER_L = GROOVE_OUTER_L - 2 * RIDGE_OFFSET
+RIDGE_OUTER_W = GROOVE_OUTER_W - 2 * RIDGE_OFFSET
+RIDGE_INNER_L = RIDGE_OUTER_L - 2 * GASKET_WIDTH
+RIDGE_INNER_W = RIDGE_OUTER_W - 2 * GASKET_WIDTH
+
 # Feature positions
 BOSS_INSET = 1.0  # inset from cavity corner (bosses merge with walls)
 BOLT_POSITIONS = [
@@ -98,7 +139,7 @@ FLANGE_MOUNT_POSITIONS = [
 ]
 
 # ============================================================
-# PART: Base
+# PART: Base (PETG)
 # ============================================================
 # Flange plate
 flange = (
@@ -155,6 +196,23 @@ gland_boss = (
 )
 base = base.union(gland_boss)
 
+# --- CUT: Gasket groove in base top rim ---
+# Wider groove with clearance for the narrower TPU ridge
+groove_outer = (
+    cq.Workplane("XY")
+    .workplane(offset=TOTAL_BASE_H + 0.01)
+    .rect(GROOVE_OUTER_L, GROOVE_OUTER_W)
+    .extrude(-GASKET_DEPTH - 0.01)
+)
+groove_inner = (
+    cq.Workplane("XY")
+    .workplane(offset=TOTAL_BASE_H + 0.02)
+    .rect(GROOVE_INNER_L, GROOVE_INNER_W)
+    .extrude(-GASKET_DEPTH - 0.03)
+)
+groove = groove_outer.cut(groove_inner)
+base = base.cut(groove)
+
 # --- CUT: Heat-set insert pockets in corner bosses ---
 for bx, by in BOLT_POSITIONS:
     insert_hole = (
@@ -210,7 +268,44 @@ except:
     print("Warning: could not fillet base top edges")
 
 # ============================================================
-# PART: Lid (exploded position for visualization)
+# PART: TPU Crush-Seal Gasket (Bambu TPU 68D — separate STL for AMS)
+# ============================================================
+# Narrow ridge cross-section: 1.2mm wide, sits in 1.6mm groove with 0.2mm
+# clearance each side. Ridge stands 0.8mm proud of the rim — the lid
+# crushes it ~0.3mm when bolts are tightened. Narrow contact line creates
+# high surface pressure despite the stiff Shore 68D material.
+#
+# Export as separate STL — assign TPU filament in slicer.
+GASKET_TOTAL_H = GASKET_DEPTH + GASKET_PROUD
+GASKET_Z = TOTAL_BASE_H - GASKET_DEPTH  # bottom of groove
+
+gasket_outer = (
+    cq.Workplane("XY")
+    .workplane(offset=GASKET_Z)
+    .rect(RIDGE_OUTER_L, RIDGE_OUTER_W)
+    .extrude(GASKET_TOTAL_H)
+)
+gasket_inner = (
+    cq.Workplane("XY")
+    .workplane(offset=GASKET_Z - 0.01)
+    .rect(RIDGE_INNER_L, RIDGE_INNER_W)
+    .extrude(GASKET_TOTAL_H + 0.02)
+)
+gasket = gasket_outer.cut(gasket_inner)
+
+# Cut clearance around bolt bosses so gasket doesn't interfere
+for bx, by in BOLT_POSITIONS:
+    boss_clear = (
+        cq.Workplane("XY")
+        .workplane(offset=GASKET_Z - 0.1)
+        .center(bx, by)
+        .circle(BOSS_OD / 2 + 0.5)
+        .extrude(GASKET_TOTAL_H + 0.2)
+    )
+    gasket = gasket.cut(boss_clear)
+
+# ============================================================
+# PART: Lid (PETG — exploded position for visualization)
 # ============================================================
 LID_BOTTOM_Z = TOTAL_BASE_H + EXPLODE_GAP
 
@@ -272,6 +367,7 @@ import os
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
 cq.exporters.export(base, os.path.join(OUT_DIR, "pizero_housing_base.stl"))
 cq.exporters.export(lid, os.path.join(OUT_DIR, "pizero_housing_lid.stl"))
+cq.exporters.export(gasket, os.path.join(OUT_DIR, "pizero_housing_gasket.stl"))
 
 print(f"Base:    {FLANGE_L:.1f} × {FLANGE_W:.1f} × {TOTAL_BASE_H:.1f} mm")
 print(f"Body:    {EXT_L:.1f} × {EXT_W:.1f} × {BODY_H:.1f} mm")
@@ -279,10 +375,26 @@ print(f"Lid:     {EXT_L:.1f} × {EXT_W:.1f} × {LID_THICKNESS:.1f} mm")
 print(f"Cavity:  {CAVITY_L:.1f} × {CAVITY_W:.1f} × {CAVITY_DEPTH:.1f} mm")
 print(f"Wall:    {WALL:.1f}mm  |  Corner R: {CORNER_RADIUS:.1f}mm")
 print()
+print("Crush-Seal Gasket (TPU 68D — Shore 68D semi-rigid):")
+print(f"  Groove:  {GROOVE_OUTER_L:.1f} × {GROOVE_OUTER_W:.1f} mm (outer)")
+print(f"           {GASKET_GROOVE_W:.1f}mm wide × {GASKET_DEPTH:.1f}mm deep")
+print(f"  Ridge:   {GASKET_WIDTH:.1f}mm wide (in {GASKET_GROOVE_W:.1f}mm groove, {RIDGE_OFFSET:.1f}mm clearance)")
+print(f"  Proud:   {GASKET_PROUD:.1f}mm above rim (crush zone, expect ~0.3mm compression)")
+print(f"  Total H: {GASKET_TOTAL_H:.1f}mm")
+print()
 print("Features:")
 print(f"  4× M3 corner bosses (OD {BOSS_OD:.0f}mm, heat-set inserts)")
 print(f"  4× M2.5 PCB standoffs ({PCB_PATTERN_L:.0f}×{PCB_PATTERN_W:.0f}mm pattern, {STANDOFF_HEIGHT:.0f}mm tall)")
 print(f"  1× PG7 cable gland boss (M12 hole, OD {GLAND_BOSS_OD:.0f}mm)")
 print(f"  4× M4 flange mounting holes")
 print(f"  4× M3 counterbored lid bolts")
-print("Exported: pizero_housing_base.stl, pizero_housing_lid.stl")
+print(f"  1× TPU crush-seal gasket ridge (printed in-place via AMS)")
+print()
+print("Multi-Material Print Setup (Bambu P2S + AMS):")
+print("  1. Import all 3 STLs into Bambu Studio")
+print("  2. Assign PETG to base + lid")
+print("  3. Assign Bambu TPU 68D to gasket")
+print("  4. Use 0.4mm nozzle (TPU 68D incompatible with 0.2mm)")
+print("  5. TPU settings: 220-240°C nozzle, 30-35°C bed")
+print()
+print("Exported: pizero_housing_base.stl, pizero_housing_lid.stl, pizero_housing_gasket.stl")
