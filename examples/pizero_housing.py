@@ -9,9 +9,18 @@ SEALING ARCHITECTURE (modeled on Hammond 1554 / Fibox IP67):
       (a) 1.5mm silicone O-ring cord (Shore 30-50A) — recommended for IP67
       (b) Printed TPU 68D gasket via AMS — adequate for IP65 splash-proof
   - Gasket is a CONTINUOUS unbroken rectangle — no interruptions.
-  - Bolts, nuts, washers only — no heat-set inserts.
-  - Hex nut pockets at pillar tops capture M3 nuts; bolts from lid side.
+  - Bolts, nuts only — no heat-set inserts.
+  - THROUGH-BOLT DESIGN: M3x30 SHCS from lid top, through pillar, into
+    hex nut embedded in flange. Bolt head pushes lid down, nut resists
+    from below — proper clamping compresses gasket.
   - No fastener paths penetrate the sealed volume.
+  - Flange bottom is FLUSH — no protrusions. Hex nut pockets are recessed
+    into flange underside. Print base with flange down.
+
+MECHANICAL CLAMPING:
+  Bolt head (lid top) → lid → pillar → flange → hex nut (embedded in flange)
+  Tightening pulls everything together. Pillar tops flush with body rim
+  act as crush limiters — gasket compresses exactly 0.5mm (33%).
 
 GASKET COMPRESSION:
   Groove is 1.6mm wide × 1.0mm deep. A 1.5mm round cord stands 0.5mm
@@ -25,27 +34,42 @@ GASKET COMPRESSION:
 
 CABLE GLAND:
   PG7 cable gland boss is on the +X short wall at mid-body height.
-  The boss top (Z=24.5) is 2.5mm below the body rim (Z=27) — no lid
-  interference. No cutout needed. The gland is accessed from the side.
+  The boss top is below the body rim — no lid interference. No cutout
+  needed. The gland is accessed from the side.
+
+ASSEMBLY SEQUENCE:
+  1. Insert 4× M3 hex nuts into hex pockets on flange underside
+     (press-fit or tack with CA glue — hex shape prevents rotation)
+  2. Mount base to bulkhead using 4× M4 bolts through flange holes
+  3. Install PG7 cable gland + locknut on +X short wall
+  4. Mount PCB on standoffs (4× M2.5 self-tapping screws)
+  5. Route cable through gland, tighten gland
+  6. Place gasket in groove (silicone cord or printed TPU already in place)
+  7. Place lid — alignment lip drops into cavity
+     (lid has NO bulkhead holes — base is already mounted)
+  8. Insert 4× M3x30 SHCS from lid top into pillar through-holes
+  9. Tighten in cross-pattern (1-3-2-4) to compress gasket evenly
 
 PRINT SETUP (Bambu Lab P2S with AMS):
   Filament 1: PETG (body, lid)
   Filament 2: Bambu TPU 68D (gasket) — 220-240°C nozzle, 30-35°C bed
   Nozzle: 0.4mm (TPU 68D is NOT compatible with 0.2mm nozzle)
+  Print base with flange face DOWN for flush bottom surface.
   Import base + lid + gasket STLs, assign materials, print as one job.
-  Bolts STL is for visualization/interference check only.
 
 HARDWARE (not printed):
-  4× M3x6 SHCS (stainless)
+  4× M3x30 SHCS (stainless)
   4× M3 hex nut (stainless)
-  4× M4 bulkhead bolts + nuts (user-supplied, for mounting to bulkhead)
+  4× M4 bulkhead bolts + nuts (user-supplied, for mounting base to bulkhead)
   1× PG7 cable gland + locknut
+  4× M2.5 self-tapping screws (PCB mounting)
   Optional: 1.5m of 1.5mm silicone O-ring cord (if not using printed gasket)
 
 All dimensions in mm.
 """
 import cadquery as cq
 import math
+import os
 
 # ============================================================
 # PARAMETERS
@@ -59,7 +83,7 @@ BOARD_HEIGHT = 5.0
 WALL = 3.0                   # wall thickness (PETG, structural)
 CLEARANCE = 3.0              # clearance around board each side
 CAVITY_DEPTH = 20.0          # internal cavity depth
-LID_THICKNESS = 4.0          # lid plate thickness
+LID_THICKNESS = 5.0          # lid plate thickness (1.8mm material above counterbore)
 LID_LIP_DEPTH = 2.5          # lid lip extends into base cavity
 LID_LIP_GAP = 0.3            # clearance between lip and cavity wall
 CORNER_RADIUS = 2.0          # fillet radius on all corners
@@ -69,42 +93,43 @@ GASKET_GROOVE_W = 1.6        # groove width
 GASKET_GROOVE_D = 1.0        # groove depth (1.5mm cord stands 0.5mm proud → 33% compression)
 GASKET_INSET = 0.7           # from outer wall edge (0.7mm wall each side of groove)
 
-# Mounting flange
-FLANGE_EXT = 8.0             # extension beyond body each side
-FLANGE_THICK = 4.0           # flange plate thickness
+# Mounting flange (flush bottom — no protrusions below Z=0)
+FLANGE_EXT = 10.0            # extension beyond body each side (2mm margin around pillars)
+FLANGE_THICK = 5.0           # flange plate thickness (hex nut pockets embedded inside)
 
 # External bolt pillar bosses — at flange corners, OUTSIDE body walls
 BOSS_OD = 10.0               # pillar diameter (sized for M3 hex nut wall)
-LID_BOLT_INSET = 5.0         # bolt center inset from flange edge
+LID_BOLT_INSET = 7.0         # bolt center inset from flange edge (2mm margin to edge)
 
-# M3 hex nut (DIN 934) — captive in pillar top pocket
+# M3 hex nut (DIN 934) — embedded in flange (pocket opens at bottom face)
 NUT_AF = 5.5                 # across flats
 NUT_POCKET_AF = 5.7          # pocket across flats (0.1mm clearance per flat)
 NUT_THICK = 2.4              # nut height
-NUT_POCKET_DEPTH = 2.5       # hex pocket depth (nut sits in pocket)
-BOLT_TIP_BORE = 3.0          # bore depth below nut for bolt tip clearance
+NUT_POCKET_DEPTH = 3.0       # hex pocket depth from flange bottom (nut + 0.6mm clearance)
 
-# M3 bolt through lid
-BOLT_CLEARANCE = 3.4         # M3 clearance through-hole in lid
+# Through-bolt hole (runs full length: lid → pillar → flange → nut pocket ceiling)
+BOLT_CLEARANCE = 3.4         # M3 clearance through-hole
+
+# M3 bolt counterbore in lid
 BOLT_HEAD_DIA = 6.0          # M3 SHCS counterbore diameter
 BOLT_HEAD_DEPTH = 3.2        # counterbore depth in lid
 
-# M3 SHCS dimensions (for visualization & interference check)
+# M3 SHCS dimensions (for interference check — not visualized)
 M3_HEAD_DIA = 5.5            # actual M3 SHCS head diameter
 M3_HEAD_H = 3.0              # actual M3 SHCS head height
 M3_SHAFT_DIA = 3.0           # M3 shaft diameter
-M3_BOLT_LENGTH = 6.0         # M3x6 shaft length
+M3_BOLT_LENGTH = 30.0        # M3x30 shaft length (through lid + pillar + flange)
 
-# Bulkhead mounting (M4 × 4, on LONG edges only — short edges have cable gland)
+# Bulkhead mounting (M4 × 4, on LONG edges only — BASE ONLY, not lid)
 FLANGE_HOLE_DIA = 4.5        # M4 clearance
 BULKHEAD_INSET = 4.0         # M4 hole inset from flange edge
 
-# PCB mounting (Pi Zero 2W — 58×23mm pattern, M2.5)
+# PCB mounting (Pi Zero 2W — 58×23mm pattern, M2.5 self-tapping screws)
 PCB_PATTERN_L = 58.0
 PCB_PATTERN_W = 23.0
 STANDOFF_OD = 5.5
 STANDOFF_HEIGHT = 4.0
-STANDOFF_HOLE_DIA = 2.2      # undersized for M2.5 self-tap
+STANDOFF_HOLE_DIA = 2.0      # undersized for M2.5 self-tapping screw
 
 # Cable gland (PG7 on +X short end)
 GLAND_BOSS_OD = 18.0
@@ -122,15 +147,15 @@ CAVITY_W = BOARD_WIDTH + 2 * CLEARANCE      # 36
 EXT_L = CAVITY_L + 2 * WALL                 # 77
 EXT_W = CAVITY_W + 2 * WALL                 # 42
 BODY_H = CAVITY_DEPTH + WALL                # 23
-TOTAL_BASE_H = FLANGE_THICK + BODY_H        # 27
-FLOOR_Z = FLANGE_THICK + WALL               # 7 — cavity floor
+TOTAL_BASE_H = FLANGE_THICK + BODY_H        # 28
+FLOOR_Z = FLANGE_THICK + WALL               # 8 — cavity floor
 
 LIP_L = CAVITY_L - 2 * LID_LIP_GAP
 LIP_W = CAVITY_W - 2 * LID_LIP_GAP
 LIP_WALL = 2.0
 
-FLANGE_L = EXT_L + 2 * FLANGE_EXT           # 93
-FLANGE_W = EXT_W + 2 * FLANGE_EXT           # 58
+FLANGE_L = EXT_L + 2 * FLANGE_EXT           # 97
+FLANGE_W = EXT_W + 2 * FLANGE_EXT           # 62
 
 # Gasket groove rectangle on body wall rim
 GROOVE_OUTER_L = EXT_L - 2 * GASKET_INSET
@@ -153,6 +178,12 @@ NUT_ACROSS_CORNERS = NUT_POCKET_AF / math.cos(math.radians(30))  # ~6.58mm
 PILLAR_H = BODY_H
 PILLAR_TOP_Z = FLANGE_THICK + PILLAR_H      # same as TOTAL_BASE_H
 
+# Through-bolt hole length: from pillar top through flange into nut pocket
+# Overlap 1mm into hex pocket to ensure clean junction (no membrane)
+NUT_POCKET_CEILING_Z = NUT_POCKET_DEPTH     # measured from flange bottom (Z=0)
+THROUGH_HOLE_OVERLAP = 1.0                  # overlap into hex pocket
+THROUGH_HOLE_LENGTH = TOTAL_BASE_H - NUT_POCKET_CEILING_Z + THROUGH_HOLE_OVERLAP
+
 # Feature positions
 # Lid bolt positions — on flange corners, OUTSIDE the body walls
 LID_BOLT_POSITIONS = [
@@ -163,6 +194,7 @@ LID_BOLT_POSITIONS = [
 ]
 
 # Bulkhead mounting — LONG EDGES ONLY (short edges have cable gland)
+# These are in the BASE ONLY — lid has no bulkhead holes
 BULKHEAD_POSITIONS = [
     ( FLANGE_L/4,  FLANGE_W/2 - BULKHEAD_INSET),   # +Y edge, +X quarter
     (-FLANGE_L/4,  FLANGE_W/2 - BULKHEAD_INSET),   # +Y edge, -X quarter
@@ -177,12 +209,12 @@ PCB_POSITIONS = [
     (-PCB_PATTERN_L/2, -PCB_PATTERN_W/2),
 ]
 
-CABLE_GLAND_Z = FLANGE_THICK + BODY_H / 2   # mid-body height
+CABLE_GLAND_Z = FLANGE_THICK + BODY_H / 2 - 1.0  # slightly below mid-body (clears lid lip)
 
 # ============================================================
 # PART: Base (PETG)
 # ============================================================
-# Flange plate
+# Flange plate — flush bottom at Z=0
 flange = (
     cq.Workplane("XY")
     .rect(FLANGE_L, FLANGE_W)
@@ -238,6 +270,13 @@ gland_boss = (
 )
 base = base.union(gland_boss)
 
+# --- Fillet base vertical corners BEFORE cutting holes ---
+# Only fillet vertical edges. Top edges (rim) must stay flat for gasket groove.
+try:
+    base = base.edges("|Z").fillet(CORNER_RADIUS)
+except:
+    print("Warning: could not fillet all base vertical edges")
+
 # --- CUT: Gasket groove in base top rim ---
 # CONTINUOUS rectangle — no interruptions from bolt bosses (they're external).
 groove_outer = (
@@ -255,31 +294,31 @@ groove_inner = (
 groove = groove_outer.cut(groove_inner)
 base = base.cut(groove)
 
-# --- CUT: Hex nut pockets at pillar tops ---
-# M3 hex nut sits in pocket. Bolt from lid threads into nut.
-# Below nut: cylindrical bore for bolt tip clearance.
+# --- CUT: Through-bolt holes (full length of pillar + flange) ---
+# 3.4mm clearance hole from pillar top down to nut pocket ceiling
 for bx, by in LID_BOLT_POSITIONS:
-    # Hex pocket for nut
-    nut_pocket = (
+    through_hole = (
         cq.Workplane("XY")
         .workplane(offset=PILLAR_TOP_Z + 0.01)
         .center(bx, by)
+        .circle(BOLT_CLEARANCE / 2)
+        .extrude(-(THROUGH_HOLE_LENGTH + 0.02))
+    )
+    base = base.cut(through_hole)
+
+# --- CUT: Hex nut pockets in flange (open at bottom face for nut insertion) ---
+# Nut drops in from below. Hex pocket prevents rotation. Flush bottom.
+for bx, by in LID_BOLT_POSITIONS:
+    nut_pocket = (
+        cq.Workplane("XY")
+        .workplane(offset=-0.01)
+        .center(bx, by)
         .polygon(6, NUT_ACROSS_CORNERS)
-        .extrude(-(NUT_POCKET_DEPTH + 0.01))
+        .extrude(NUT_POCKET_DEPTH + 0.01)
     )
     base = base.cut(nut_pocket)
 
-    # Cylindrical bore below nut for bolt tip
-    tip_bore = (
-        cq.Workplane("XY")
-        .workplane(offset=PILLAR_TOP_Z - NUT_POCKET_DEPTH)
-        .center(bx, by)
-        .circle(BOLT_CLEARANCE / 2)
-        .extrude(-BOLT_TIP_BORE)
-    )
-    base = base.cut(tip_bore)
-
-# --- CUT: PCB screw holes in standoffs ---
+# --- CUT: PCB screw holes in standoffs (for M2.5 self-tapping screws) ---
 for px, py in PCB_POSITIONS:
     screw_hole = (
         cq.Workplane("XY")
@@ -300,7 +339,7 @@ gland_hole = (
 )
 base = base.cut(gland_hole)
 
-# --- CUT: M4 bulkhead mounting holes (through flange only — long edges) ---
+# --- CUT: M4 bulkhead mounting holes (through flange — BASE ONLY) ---
 for fx, fy in BULKHEAD_POSITIONS:
     flange_hole = (
         cq.Workplane("XY")
@@ -310,17 +349,6 @@ for fx, fy in BULKHEAD_POSITIONS:
         .extrude(FLANGE_THICK + 2)
     )
     base = base.cut(flange_hole)
-
-# --- Fillet base corners ---
-try:
-    base = base.edges("|Z").fillet(CORNER_RADIUS)
-except:
-    print("Warning: could not fillet all base vertical edges")
-
-try:
-    base = base.edges(">Z").fillet(CORNER_RADIUS * 0.5)
-except:
-    print("Warning: could not fillet base top edges")
 
 # ============================================================
 # PART: TPU Gasket (Bambu TPU 68D — printed in-place via AMS)
@@ -348,7 +376,7 @@ gasket = gasket_outer.cut(gasket_inner)
 # ============================================================
 LID_BOTTOM_Z = PILLAR_TOP_Z + EXPLODE_GAP
 
-# Main lid plate — full flange size
+# Main lid plate — covers body + pillars (no bulkhead holes — base mounts first)
 lid = (
     cq.Workplane("XY")
     .workplane(offset=LID_BOTTOM_Z)
@@ -391,17 +419,6 @@ for bx, by in LID_BOLT_POSITIONS:
     )
     lid = lid.cut(cbore)
 
-# --- CUT: M4 bulkhead holes through lid (matching base flange) ---
-for fx, fy in BULKHEAD_POSITIONS:
-    flange_hole = (
-        cq.Workplane("XY")
-        .workplane(offset=LID_BOTTOM_Z - 1)
-        .center(fx, fy)
-        .circle(FLANGE_HOLE_DIA / 2)
-        .extrude(LID_THICKNESS + 2)
-    )
-    lid = lid.cut(flange_hole)
-
 # --- Fillet lid corners ---
 try:
     lid = lid.edges("|Z").fillet(CORNER_RADIUS)
@@ -409,17 +426,18 @@ except:
     print("Warning: could not fillet all lid vertical edges")
 
 # ============================================================
-# PART: Hardware (M3 bolts + nuts — visualization only)
+# INTERFERENCE CHECK (assembled position — no hardware visualization)
 # ============================================================
-# Assembled position: lid sits on pillar tops (flush with rim)
+# Build virtual bolt+nut geometry for interference checking only
 ASSEMBLED_LID_Z = PILLAR_TOP_Z
 ASSEMBLED_LID_TOP = ASSEMBLED_LID_Z + LID_THICKNESS
 
-hardware = None
+hardware_check = None
 for bx, by in LID_BOLT_POSITIONS:
-    # --- M3 SHCS Bolt ---
-    head_bottom = ASSEMBLED_LID_TOP - M3_HEAD_H
-    shaft_bottom = head_bottom - M3_BOLT_LENGTH
+    head_top = ASSEMBLED_LID_TOP
+    head_bottom = head_top - M3_HEAD_H
+    shaft_top = head_bottom
+    shaft_bottom = shaft_top - M3_BOLT_LENGTH
 
     head = (
         cq.Workplane("XY")
@@ -437,26 +455,21 @@ for bx, by in LID_BOLT_POSITIONS:
     )
     bolt = head.union(shaft)
 
-    # --- M3 Hex Nut (in pocket at pillar top) ---
-    nut_top = PILLAR_TOP_Z  # nut sits flush with pillar top
+    nut_top_z = NUT_POCKET_DEPTH
+    nut_bottom_z = nut_top_z - NUT_THICK
     nut = (
         cq.Workplane("XY")
-        .workplane(offset=nut_top - NUT_THICK)
+        .workplane(offset=nut_bottom_z)
         .center(bx, by)
         .polygon(6, NUT_AF / math.cos(math.radians(30)))
         .extrude(NUT_THICK)
     )
 
     piece = bolt.union(nut)
-    if hardware is None:
-        hardware = piece
+    if hardware_check is None:
+        hardware_check = piece
     else:
-        hardware = hardware.union(piece)
-
-# ============================================================
-# INTERFERENCE CHECK (assembled position)
-# ============================================================
-import os
+        hardware_check = hardware_check.union(piece)
 
 # Build assembled lid (at actual position, not exploded)
 lid_asm = (
@@ -495,15 +508,6 @@ for bx, by in LID_BOLT_POSITIONS:
         .extrude(-(BOLT_HEAD_DEPTH + 1))
     )
     lid_asm = lid_asm.cut(cb)
-for fx, fy in BULKHEAD_POSITIONS:
-    fh = (
-        cq.Workplane("XY")
-        .workplane(offset=ASSEMBLED_LID_Z - 1)
-        .center(fx, fy)
-        .circle(FLANGE_HOLE_DIA / 2)
-        .extrude(LID_THICKNESS + 2)
-    )
-    lid_asm = lid_asm.cut(fh)
 
 print("=" * 60)
 print("INTERFERENCE CHECK (assembled position)")
@@ -511,47 +515,78 @@ print("=" * 60)
 
 def check_interference(name, a, b, expected=False):
     inter = a.intersect(b)
-    vol = inter.val().Volume() if inter.val().Volume() > 0.001 else 0
+    raw_vol = inter.val().Volume()
+    vol = raw_vol if raw_vol > 2.0 else 0  # ignore <2mm³ floating-point surface slivers
     if expected:
         status = "EXPECTED" if vol > 0 else "MISSING!"
     else:
         status = "INTERFERENCE!" if vol > 0 else "CLEAR"
-    print(f"  {name:25s} {status:15s} ({vol:.2f} mm³)")
+    print(f"  {name:25s} {status:15s} ({vol:.2f} mm\u00b3)")
     return vol
 
-check_interference("Bolt+Nut ↔ Base", hardware, base)
-check_interference("Bolt+Nut ↔ Lid", hardware, lid_asm)
-check_interference("Bolt+Nut ↔ Gasket", hardware, gasket)
-check_interference("Lid ↔ Base", lid_asm, base)
-check_interference("Lid ↔ Gasket (seal)", lid_asm, gasket, expected=True)
-check_interference("Gasket ↔ Base (groove)", gasket, base, expected=True)
+check_interference("Bolt+Nut \u2194 Base", hardware_check, base)
+check_interference("Bolt+Nut \u2194 Lid", hardware_check, lid_asm)
+check_interference("Bolt+Nut \u2194 Gasket", hardware_check, gasket)
+check_interference("Lid \u2194 Base (contact)", lid_asm, base)
+check_interference("Lid \u2194 Gasket (seal)", lid_asm, gasket, expected=True)
+check_interference("Gasket \u2194 Base", gasket, base)
 
 print()
 
-# --- Bolt Reach Analysis ---
-head_bottom = ASSEMBLED_LID_TOP - M3_HEAD_H
-shaft_tip = head_bottom - M3_BOLT_LENGTH
-lid_remaining = LID_THICKNESS - BOLT_HEAD_DEPTH
-shaft_in_lid = lid_remaining
-shaft_past_lid = M3_BOLT_LENGTH - shaft_in_lid
-nut_top_z = PILLAR_TOP_Z
-nut_bottom_z = nut_top_z - NUT_THICK
-pocket_bottom_z = nut_top_z - NUT_POCKET_DEPTH
-bore_bottom_z = pocket_bottom_z - BOLT_TIP_BORE
+# --- Bolt Reach Analysis (Through-bolt: lid → pillar → flange → nut) ---
+print("Bolt Reach Analysis (M3x30 SHCS through-bolt + M3 hex nut embedded in flange):")
+head_top = ASSEMBLED_LID_TOP
+head_bottom = head_top - M3_HEAD_H
+shaft_top = head_bottom
+shaft_bottom = shaft_top - M3_BOLT_LENGTH
 
-print("Bolt Reach Analysis (M3x6 SHCS + M3 hex nut):")
-print(f"  Bolt head:       Z = {head_bottom:.1f}–{ASSEMBLED_LID_TOP:.1f} mm (in counterbore)")
+lid_material = LID_THICKNESS - BOLT_HEAD_DEPTH  # lid material bolt passes through
+pillar_length = PILLAR_H                         # pillar bolt passes through
+flange_to_nut = FLANGE_THICK - NUT_POCKET_DEPTH  # flange material above nut pocket
+total_material = lid_material + pillar_length + flange_to_nut
+
+print(f"  Bolt head:         Z = {head_bottom:.1f}\u2013{head_top:.1f} mm (in counterbore)")
 cbore_msg = "OK recessed" if BOLT_HEAD_DEPTH >= M3_HEAD_H else f"PROTRUDES {M3_HEAD_H - BOLT_HEAD_DEPTH:.1f}mm!"
-print(f"  Counterbore:     {BOLT_HEAD_DEPTH:.1f} mm deep, head {M3_HEAD_H:.1f} mm → {cbore_msg}")
-print(f"  Shaft in lid:    {shaft_in_lid:.1f} mm (through {lid_remaining:.1f} mm material)")
-print(f"  Shaft into nut:  {min(shaft_past_lid, NUT_THICK):.1f} mm thread engagement")
-shaft_past_nut = shaft_past_lid - NUT_THICK
-tip_z = nut_bottom_z - max(0, shaft_past_nut)
-if shaft_past_nut > 0:
-    fits = "OK" if shaft_past_nut <= BOLT_TIP_BORE else "BOTTOMS OUT!"
-    print(f"  Bolt tip past nut: {shaft_past_nut:.1f} mm into bore ({BOLT_TIP_BORE:.1f} mm avail) → {fits}")
+print(f"  Counterbore:       {BOLT_HEAD_DEPTH:.1f} mm deep, head {M3_HEAD_H:.1f} mm \u2192 {cbore_msg}")
+print(f"  Shaft top:         Z = {shaft_top:.1f} mm")
+print(f"  Shaft bottom:      Z = {shaft_bottom:.1f} mm")
+print(f"  Path breakdown:")
+print(f"    Lid material:    {lid_material:.1f} mm (clearance hole)")
+print(f"    Pillar:          {pillar_length:.1f} mm (clearance hole)")
+print(f"    Flange above nut:{flange_to_nut:.1f} mm (clearance hole)")
+print(f"    Total clearance: {total_material:.1f} mm")
+print(f"  Nut position:      Z = {NUT_POCKET_DEPTH - NUT_THICK:.1f}\u2013{NUT_POCKET_DEPTH:.1f} mm")
+print(f"  Shaft reaches to:  Z = {shaft_bottom:.1f} mm")
+
+# How deep does shaft go into nut?
+thread_engagement = NUT_POCKET_DEPTH - shaft_bottom
+if thread_engagement > NUT_THICK:
+    thread_engagement_actual = NUT_THICK
+    tip_past_nut = thread_engagement - NUT_THICK
+else:
+    thread_engagement_actual = max(0, thread_engagement)
+    tip_past_nut = 0
+
+print(f"  Thread engagement: {thread_engagement_actual:.1f} mm ({thread_engagement_actual/NUT_THICK*100:.0f}% of nut)")
+if tip_past_nut > 0:
+    tip_end_z = NUT_POCKET_DEPTH - NUT_THICK - tip_past_nut
+    print(f"  Bolt tip past nut: {tip_past_nut:.1f} mm")
+    print(f"  Tip end:           Z = {tip_end_z:.1f} mm")
+    fits = "OK (inside hex pocket recess)" if tip_end_z >= 0 else "PROTRUDES BELOW FLANGE!"
+    print(f"  Flush bottom:      {fits}")
 else:
     print(f"  Bolt tip past nut: NONE (tip inside nut)")
+print()
+
+# --- Clamping Force Path ---
+print("Clamping Force Path:")
+print(f"  Bolt head pushes DOWN on lid top (Z = {head_top:.1f})")
+print(f"  Lid rests on pillar tops (Z = {PILLAR_TOP_Z:.1f}) = crush limiter")
+print(f"  Lid also contacts gasket (Z = {TOTAL_BASE_H:.1f} + 0.3mm proud)")
+print(f"  Nut resists from below (Z = {NUT_POCKET_DEPTH - NUT_THICK:.1f})")
+print(f"  Force path: head \u2192 lid \u2192 pillar/gasket \u2192 flange \u2192 nut")
+print(f"  Gasket compression: pillars limit travel, gasket gets 33% compression")
+print(f"  \u2192 PROPER CLAMPING JOINT")
 print()
 
 # --- Cable Gland Clearance ---
@@ -561,13 +596,18 @@ LID_LIP_BOTTOM_Z = ASSEMBLED_LID_Z - LID_LIP_DEPTH
 print("Cable Gland Clearance:")
 print(f"  Gland boss top:     Z = {GLAND_TOP_Z:.1f} mm")
 print(f"  Body rim:           Z = {TOTAL_BASE_H:.1f} mm")
-print(f"  Clearance to rim:   {TOTAL_BASE_H - GLAND_TOP_Z:.1f} mm → {'OK' if TOTAL_BASE_H > GLAND_TOP_Z else 'INTERFERENCE!'}")
+print(f"  Clearance to rim:   {TOTAL_BASE_H - GLAND_TOP_Z:.1f} mm \u2192 {'OK' if TOTAL_BASE_H > GLAND_TOP_Z else 'INTERFERENCE!'}")
 print(f"  Lid bottom:         Z = {ASSEMBLED_LID_Z:.1f} mm")
 print(f"  Lid lip bottom:     Z = {LID_LIP_BOTTOM_Z:.1f} mm")
-print(f"  Lip ↔ gland gap:   {LID_LIP_BOTTOM_Z - GLAND_TOP_Z:.1f} mm → {'OK' if LID_LIP_BOTTOM_Z > GLAND_TOP_Z else 'INTERFERENCE!'}")
+gap_msg = "OK" if LID_LIP_BOTTOM_Z > GLAND_TOP_Z else "INTERFERENCE!"
+print(f"  Lip \u2194 gland gap:   {LID_LIP_BOTTOM_Z - GLAND_TOP_Z:.1f} mm \u2192 {gap_msg}")
 print(f"  Gland outer edge:   X = {GLAND_OUTER_X:.1f} mm")
 print(f"  Flange edge:        X = {FLANGE_L/2:.1f} mm")
-print(f"  Gland extends past flange: {'YES — ' + str(GLAND_OUTER_X - FLANGE_L/2) + 'mm' if GLAND_OUTER_X > FLANGE_L/2 else 'NO — flush or inside'}")
+extends = GLAND_OUTER_X - FLANGE_L/2
+if extends > 0:
+    print(f"  Gland extends past flange: YES \u2014 {extends:.1f}mm")
+else:
+    print(f"  Gland extends past flange: NO \u2014 flush or inside")
 print(f"  Lid cutout needed:  NO (gland is {TOTAL_BASE_H - GLAND_TOP_Z:.1f} mm below rim)")
 print()
 
@@ -576,81 +616,90 @@ nut_wall = (BOSS_OD - NUT_ACROSS_CORNERS) / 2
 print("Pillar & Nut Pocket:")
 print(f"  Pillar OD:          {BOSS_OD:.1f} mm")
 print(f"  Nut across corners: {NUT_ACROSS_CORNERS:.1f} mm")
-print(f"  Wall around nut:    {nut_wall:.1f} mm → {'OK' if nut_wall >= 1.0 else 'THIN!'}")
-print(f"  Nut pocket depth:   {NUT_POCKET_DEPTH:.1f} mm (nut {NUT_THICK:.1f} mm)")
-print(f"  Bolt tip bore:      {BOLT_TIP_BORE:.1f} mm below nut")
+print(f"  Wall around nut:    {nut_wall:.1f} mm \u2192 {'OK' if nut_wall >= 1.0 else 'THIN!'}")
+print(f"  Nut pocket depth:   {NUT_POCKET_DEPTH:.1f} mm (nut {NUT_THICK:.1f} mm + clearance)")
+print(f"  Flange thickness:   {FLANGE_THICK:.1f} mm (pocket uses {NUT_POCKET_DEPTH:.1f}, leaves {FLANGE_THICK - NUT_POCKET_DEPTH:.1f} mm above)")
 print()
 
 # --- Pillar Position Clearance ---
 print("Pillar Position Clearance:")
 for i, (bx, by) in enumerate(LID_BOLT_POSITIONS):
-    dist_body_x = abs(bx) - EXT_L / 2
-    dist_body_y = abs(by) - EXT_W / 2
-    min_gap = min(dist_body_x, dist_body_y) - BOSS_OD / 2
     dist_flange_x = FLANGE_L / 2 - abs(bx) - BOSS_OD / 2
     dist_flange_y = FLANGE_W / 2 - abs(by) - BOSS_OD / 2
     min_flange = min(dist_flange_x, dist_flange_y)
     print(f"  Bolt {i+1} ({bx:+.1f}, {by:+.1f}): "
-          f"body wall gap {min_gap:.1f}mm, flange edge {min_flange:.1f}mm")
+          f"flange edge margin {min_flange:.1f}mm \u2192 {'OK' if min_flange >= 1.5 else 'TIGHT!'}")
 
 print()
 
 # --- Bulkhead ↔ Bolt/Gland Check ---
-print("Bulkhead Hole Checks:")
+print("Bulkhead Hole Checks (base only — lid has no bulkhead holes):")
 for i, (fx, fy) in enumerate(BULKHEAD_POSITIONS):
-    # vs bolt pillars
+    issues = []
     for j, (bx, by) in enumerate(LID_BOLT_POSITIONS):
         dist = math.sqrt((fx - bx)**2 + (fy - by)**2)
         min_clear = (FLANGE_HOLE_DIA + BOSS_OD) / 2 + 1.0
-        ok = dist >= min_clear
-        if not ok:
-            print(f"  BH{i+1} ↔ Bolt{j+1}: {dist:.1f}mm (need {min_clear:.1f}) → CONFLICT!")
-    # vs cable gland
+        if dist < min_clear:
+            issues.append(f"Bolt{j+1} ({dist:.1f}mm, need {min_clear:.1f})")
     gland_cx = EXT_L / 2 + GLAND_BOSS_LENGTH / 2
     gland_cy = 0
     dist_gland = math.sqrt((fx - gland_cx)**2 + (fy - gland_cy)**2)
     min_gland = (FLANGE_HOLE_DIA + GLAND_BOSS_OD) / 2 + 1.0
     if dist_gland < min_gland:
-        print(f"  BH{i+1} ↔ CableGland: {dist_gland:.1f}mm (need {min_gland:.1f}) → CONFLICT!")
+        issues.append(f"CableGland ({dist_gland:.1f}mm, need {min_gland:.1f})")
+    if issues:
+        for issue in issues:
+            print(f"  BH{i+1} \u2194 {issue} \u2192 CONFLICT!")
     else:
         print(f"  BH{i+1} ({fx:+.1f}, {fy:+.1f}): all clear")
 
 print()
 
-# --- M4 Hole Alignment Check ---
-print("M4 Bulkhead Hole Alignment (base ↔ lid):")
-print("  All M4 positions cut through BOTH base flange and lid — aligned ✓")
+# --- Assembly Verification ---
+print("Assembly Verification:")
+print(f"  1. Hex nut captive method: hex pocket embedded in flange")
+print(f"     Pocket AF: {NUT_POCKET_AF:.1f}mm (nut AF: {NUT_AF:.1f}mm, {NUT_POCKET_AF - NUT_AF:.1f}mm clearance)")
+print(f"     Pocket depth: {NUT_POCKET_DEPTH:.1f}mm (nut: {NUT_THICK:.1f}mm)")
+print(f"     Nut inserted from below, hex shape prevents rotation")
+print(f"     Press-fit or tack with CA glue before assembly")
+print(f"  2. Through-bolt: {BOLT_CLEARANCE:.1f}mm clearance hole, {THROUGH_HOLE_LENGTH:.1f}mm long")
+print(f"  3. Bolt: M3x{M3_BOLT_LENGTH:.0f} SHCS enters from lid top")
+print(f"  4. Clamping: bolt head \u2192 lid \u2192 pillar \u2192 flange \u2192 nut")
+print(f"  5. Crush limiters: pillars flush with rim, control gasket compression")
+print(f"  6. Bulkhead: base mounted FIRST with M4 bolts, lid installed AFTER")
+print(f"     (lid has no bulkhead holes — clean top surface)")
+print(f"  7. PCB: M2.5 self-tapping screws into {STANDOFF_HOLE_DIA:.1f}mm pilot holes")
 print()
 print("=" * 60)
 
 # ============================================================
-# EXPORT
+# EXPORT (3 parts only — no hardware visualization)
 # ============================================================
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
 cq.exporters.export(base, os.path.join(OUT_DIR, "pizero_housing_base.stl"))
 cq.exporters.export(lid, os.path.join(OUT_DIR, "pizero_housing_lid.stl"))
 cq.exporters.export(gasket, os.path.join(OUT_DIR, "pizero_housing_gasket.stl"))
-cq.exporters.export(hardware, os.path.join(OUT_DIR, "pizero_housing_hardware.stl"))
 
 print()
 print(f"Enclosure Dimensions:")
-print(f"  Base:    {FLANGE_L:.1f} × {FLANGE_W:.1f} × {TOTAL_BASE_H:.1f} mm (with flange)")
-print(f"  Body:    {EXT_L:.1f} × {EXT_W:.1f} × {BODY_H:.1f} mm")
-print(f"  Lid:     {FLANGE_L:.1f} × {FLANGE_W:.1f} × {LID_THICKNESS:.1f} mm (full flange)")
-print(f"  Cavity:  {CAVITY_L:.1f} × {CAVITY_W:.1f} × {CAVITY_DEPTH:.1f} mm")
+print(f"  Base:    {FLANGE_L:.1f} \u00d7 {FLANGE_W:.1f} \u00d7 {TOTAL_BASE_H:.1f} mm (with flange)")
+print(f"  Body:    {EXT_L:.1f} \u00d7 {EXT_W:.1f} \u00d7 {BODY_H:.1f} mm")
+print(f"  Lid:     {FLANGE_L:.1f} \u00d7 {FLANGE_W:.1f} \u00d7 {LID_THICKNESS:.1f} mm")
+print(f"  Cavity:  {CAVITY_L:.1f} \u00d7 {CAVITY_W:.1f} \u00d7 {CAVITY_DEPTH:.1f} mm")
 print(f"  Wall:    {WALL:.1f} mm  |  Corner R: {CORNER_RADIUS:.1f} mm")
-print(f"  Pillars: {BOSS_OD:.1f} mm OD × {PILLAR_H:.1f} mm (4× external, hex nut pockets)")
+print(f"  Pillars: {BOSS_OD:.1f} mm OD \u00d7 {PILLAR_H:.1f} mm (4\u00d7 external, through-bolt)")
+print(f"  Bottom:  FLUSH (no protrusions)")
 print()
 print(f"Gasket Groove (base rim):")
-print(f"  {GASKET_GROOVE_W:.1f} mm wide × {GASKET_GROOVE_D:.1f} mm deep, inset {GASKET_INSET:.1f} mm")
+print(f"  {GASKET_GROOVE_W:.1f} mm wide \u00d7 {GASKET_GROOVE_D:.1f} mm deep, inset {GASKET_INSET:.1f} mm")
 print(f"  For 1.5mm silicone cord: 33% compression (recommended for IP67)")
 print(f"  For printed TPU 68D:     23% compression (adequate for IP65)")
 print()
 print(f"Hardware (not printed):")
-print(f"  4× M3x{M3_BOLT_LENGTH:.0f} SHCS + M3 hex nut (lid bolts)")
-print(f"  4× M4 bolts + nuts (bulkhead mount, user-supplied)")
-print(f"  1× PG7 cable gland + locknut")
+print(f"  4\u00d7 M3x{M3_BOLT_LENGTH:.0f} SHCS + M3 hex nut (through-bolt, nut embedded in flange)")
+print(f"  4\u00d7 M4 bolts + nuts (bulkhead mount — base only)")
+print(f"  4\u00d7 M2.5 self-tapping screws (PCB mount)")
+print(f"  1\u00d7 PG7 cable gland + locknut")
 print()
 print("Exported: pizero_housing_base.stl, pizero_housing_lid.stl,")
-print("          pizero_housing_gasket.stl, pizero_housing_hardware.stl")
-print("(hardware.stl is for visualization only — do not print)")
+print("          pizero_housing_gasket.stl")

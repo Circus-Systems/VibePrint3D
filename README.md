@@ -1,256 +1,238 @@
 # VibePrint3D
 
-Turn plain-language descriptions of physical objects into 3D-printable STL files using Claude Code. Describe what you need — *"a waterproof case for a Pi Zero with a cable gland and bulkhead mount"* — and Claude designs it step by step, showing you the model at each stage and incorporating your feedback before moving on.
+A Claude Code skill that turns natural language descriptions of physical objects into 3D-printable STL files. Describe what you want — an enclosure, a bracket, a mount — and Claude designs it parametrically using CadQuery, reviews its own work visually, and iterates with you until it's right.
 
 ## How It Works
 
-VibePrint3D is a **Claude Code skill** that follows a three-phase design workflow:
+You talk. Claude designs. You review in 3D. Repeat until done.
 
 ```
-You describe a part
-        │
-        ▼
-┌─────────────────────────────┐
-│  Phase 1: Base Shape        │  Outer shell, cavities, proportions
-│  → Preview → Your feedback  │
-├─────────────────────────────┤
-│  Phase 2: Features          │  Holes, bosses, mounts, cable entries
-│  → Preview → Your feedback  │
-├─────────────────────────────┤
-│  Phase 3: Print Readiness   │  Fillets, checks, final STL + STEP
-│  → Preview → Your feedback  │
-└─────────────────────────────┘
-        │
-        ▼
-  STL files ready for your slicer
+You:    "I need a waterproof housing for a Raspberry Pi Zero 2W
+         with a PG7 cable gland and M4 bulkhead mounting holes"
+
+Claude: [writes CadQuery script] → [generates STL] → [renders 4-view preview]
+        [self-reviews geometry] → [opens interactive 3D viewer in browser]
+
+You:    "Make the walls thicker and add ventilation slots"
+
+Claude: [modifies script] → [rebuilds] → [re-renders] → [shows you]
 ```
 
-At each phase, Claude:
-1. Writes a parametric CadQuery (Python) script
-2. Generates the 3D model
-3. Renders a 4-view preview and self-reviews it against a printability checklist
-4. Opens an interactive 3D viewer in your browser
-5. **Waits for your feedback** before moving on
+The output is a parametric Python script with all dimensions as variables at the top — change one number and regenerate. You get STL files ready for your slicer and an interactive Three.js viewer to inspect the model from any angle.
 
-You can say things like *"make it 5mm taller"*, *"move the cable gland to the other end"*, or *"add two more mounting holes"* at any checkpoint.
+## Installation
 
-## What You Get
+### Prerequisites
 
-Every design produces:
-- **STL files** — one per printable part, ready for your slicer (PrusaSlicer, OrcaSlicer, Cura)
-- **STEP files** — for import into Onshape, Fusion 360, or any CAD tool
-- **Python script** — fully parametric; change any dimension at the top and re-run to regenerate
-- **Interactive HTML viewer** — self-contained Three.js viewer you can open anytime
-
-## Prerequisites
-
-- **Claude Code** (the CLI tool) — [install guide](https://docs.anthropic.com/en/docs/claude-code)
-- **Python 3.10–3.12** with CadQuery installed (see below)
-- **A 3D printer** and slicer software
-
-### Installing CadQuery
-
-CadQuery requires the OpenCASCADE (OCP) kernel, which needs specific Python versions. The easiest method is conda/miniforge:
+CadQuery requires Python 3.11 and OpenCASCADE bindings, which don't work with newer Python versions. You need conda:
 
 ```bash
 # Install miniforge (macOS)
 brew install --cask miniforge
 
-# Create a dedicated environment
+# Create the cadquery environment
 conda create -n cadquery python=3.11 cadquery trimesh matplotlib pillow numpy -c conda-forge -y
-
-# Verify it works
-conda activate cadquery
-python -c "import cadquery as cq; print('CadQuery', cq.__version__, '— OK')"
 ```
 
-> **Why conda?** CadQuery depends on OpenCASCADE Python bindings (OCP) which only ship pre-built wheels for Python 3.10–3.12. If your system Python is newer (3.13+), pip install will fail. The conda environment handles this cleanly.
-
-## Installation
-
-### 1. Clone the repo
+### Install the Skill
 
 ```bash
 git clone https://github.com/Circus-Systems/VibePrint3D.git
+cd VibePrint3D
+bash install.sh
 ```
 
-### 2. Install the skill into Claude Code
+This copies the skill definition and scripts to `~/.claude/skills/cadquery-3dprint/`. Restart Claude Code after installing.
 
-Copy the skill directory into Claude Code's skills folder:
+### Verify
 
 ```bash
-mkdir -p ~/.claude/skills/cadquery-3dprint/scripts
-cp VibePrint3D/SKILL.md ~/.claude/skills/cadquery-3dprint/
-cp VibePrint3D/scripts/preview.py ~/.claude/skills/cadquery-3dprint/scripts/
-cp VibePrint3D/scripts/viewer.py ~/.claude/skills/cadquery-3dprint/scripts/
+eval "$(/opt/homebrew/Caskroom/miniforge/base/bin/conda shell.bash hook)" && conda activate cadquery && python -c "import cadquery; print('CadQuery OK')"
 ```
 
-### 3. Configure the conda environment path
+## The Design Pipeline
 
-The SKILL.md file contains commands that activate the conda environment before running Python. If your miniforge is installed somewhere other than `/opt/homebrew/Caskroom/miniforge/base/`, edit the paths in `SKILL.md`:
+Every design follows three phases. Claude generates the model, renders a preview, checks its own work against a printability checklist, self-corrects if needed, then shows you. You give feedback before it moves on.
+
+### Phase 1: Base Shape
+
+The fundamental geometry — outer shell, cavities, overall proportions. No detail features yet. Claude researches reference dimensions for known components (Pi boards, cable glands, standard fasteners) and builds the parametric skeleton.
+
+### Phase 2: Features
+
+Functional details — mounting holes, bosses, grooves, fillets, snap fits, cable routes, gasket grooves. Added to the existing script, not rewritten from scratch.
+
+### Phase 3: Print Readiness
+
+Final cleanup — fillet sharp edges, verify wall thickness, check print orientation, ensure flat bed surface. Exports STL (for slicer) and STEP (for CAD import).
+
+At each phase, Claude shows you a 4-view static preview and an interactive 3D viewer. You approve or request changes before proceeding.
+
+## Running Scripts
+
+All CadQuery commands require the conda environment. Always prefix with:
 
 ```bash
-# Find your conda path
-which conda
-# Update the eval lines in SKILL.md to match
+eval "$(/opt/homebrew/Caskroom/miniforge/base/bin/conda shell.bash hook)" && conda activate cadquery && python <script>
 ```
 
-### 4. Verify
+### Design scripts
 
-Open Claude Code and say:
-
-> "Design me a simple test cube — 30mm with 2mm walls, shelled, with M3 mounting holes in each corner."
-
-Claude should write a CadQuery script, generate STLs, render previews, and open an interactive viewer.
-
-## Usage
-
-Just describe what you need in natural language. The skill activates automatically when you mention physical objects, dimensions, 3D printing, STL files, enclosures, brackets, mounts, or any description of something you want to fabricate.
-
-### Example prompts
-
-```
-"I need a waterproof enclosure for a Raspberry Pi Zero 2W with a PG7 cable
-gland for USB-C power, bulkhead mount, PETG for marine use"
-
-"Design a GoPro mount bracket for a 25mm tube — needs to handle vibration"
-
-"Make me a cable entry plate with 6 PG7 glands in a 2×3 grid, 150mm × 100mm,
-5mm thick, countersunk M4 mounting holes in the corners"
-
-"I need a DIN rail mount adapter for this PCB — it's 80×50mm with M3 holes
-at 72×42mm pattern"
+```bash
+# Run a design script (generates STL files)
+... && python examples/pizero_housing.py
 ```
 
-### Giving feedback
+### Static 4-view preview (Claude's self-review)
 
-At each checkpoint, you can request changes:
-
-```
-"Make the walls thicker — 4mm instead of 3"
-"Move the cable gland to the short end"
-"The cavity needs to be 5mm deeper"
-"Add standoffs for the PCB — M2.5 at 58×23mm pattern"
-"Can you add a DIN rail clip instead of the mounting ears?"
+```bash
+... && python scripts/preview.py part.stl preview.png --title "My Part"
 ```
 
-### Tweaking after delivery
+Renders Front, Right, Top, and Isometric views in a 2×2 grid. Prints printability warnings (watertightness, thin dimensions).
 
-Every generated script has all dimensions as named variables at the top:
+### Interactive Three.js viewer (your inspection)
+
+```bash
+... && python scripts/viewer.py base.stl lid.stl gasket.stl --title "Assembly"
+```
+
+Generates a self-contained HTML file — no internet needed, all STL data embedded as base64. Multi-part support with distinct colors. Opens in browser automatically (`--no-open` to suppress).
+
+## QA Pipeline
+
+Run `/QA3DPrint` in Claude Code to execute a comprehensive quality check on any design:
+
+1. **Interference check** — boolean intersection of all part pairs, clearance holes, counterbores, nut pockets
+2. **Structural strength** — wall thicknesses, nut pocket walls, pillar walls, bolt force paths
+3. **Assembly feasibility** — step-by-step sequence verification, tool access, clamping direction, serviceability
+4. **Bambu P2S print check** — overhangs, bridging, orientation, thin walls, AMS multi-material compatibility, build volume
+
+Returns a PASS / WARNING / ISSUE report with suggested changes. **Does not modify files without your approval.**
+
+## Design Script Conventions
+
+Every CadQuery script follows this structure:
 
 ```python
-WALL = 3.0              # wall thickness
-CLEARANCE = 3.0         # clearance around board
-CAVITY_DEPTH = 20.0     # internal cavity depth
-STANDOFF_HEIGHT = 4.0   # PCB standoff height
+"""
+Part Name — Brief description
+Assembly sequence and sealing architecture documented here.
+All dimensions in mm.
+"""
+import cadquery as cq
+
+# ============================================================
+# PARAMETERS — all dimensions as named constants
+# ============================================================
+WALL = 3.0
+LENGTH = 70.0
+
+# ============================================================
+# DERIVED DIMENSIONS — computed from parameters
+# ============================================================
+CAVITY_LENGTH = LENGTH - 2 * WALL
+
+# ============================================================
+# PART: Base
+# ============================================================
+base = cq.Workplane("XY").rect(LENGTH, WIDTH).extrude(HEIGHT)
+
+# ============================================================
+# EXPORT
+# ============================================================
+cq.exporters.export(base, "part_base.stl")
 ```
 
-Change any value, re-run the script, and get updated STL files instantly.
+Rules:
+- **No magic numbers in geometry code.** Every dimension is a named constant at the top.
+- **Derived dimensions reference parameters.** `CAVITY_L = EXT_L - 2 * WALL`, not a hardcoded number.
+- **Multi-part designs live in one script.** Shared parameters ensure parts fit together.
+- **Each part exports as a separate STL.** One file per printable piece.
+- **Docstring documents the full design.** Assembly sequence, sealing approach, hardware list, print setup.
 
-## Project Structure
+## CadQuery Gotchas
 
-```
-VibePrint3D/
-├── README.md              # This file
-├── SKILL.md               # The Claude Code skill definition
-├── scripts/
-│   ├── preview.py         # 4-view static PNG renderer (Claude self-reviews these)
-│   └── viewer.py          # Interactive Three.js HTML viewer (you inspect these)
-└── examples/
-    └── pizero_housing.py  # Complete example: Pi Zero 2W waterproof housing
-```
+- **`fillet()` fails on some edge configurations.** Always wrap in `try/except`.
+- **`shell()` fails on complex geometry.** Prefer manual cavity cutting (`cutBlind`) for reliability.
+- **Boolean cut cylinders must be longer than the boss.** Short cuts leave membranes. Add 1–2mm overlap.
+- **Clearance holes must be oversized for FDM.** M3 → 3.4mm, M4 → 4.5mm. Nominal holes print too tight.
+- **Hex nut pockets need ~0.1mm clearance per flat** vs nominal across-flats dimension.
 
-## Example: Pi Zero 2W Waterproof Housing
+## Waterproof Enclosure Design (IP67)
 
-The `examples/pizero_housing.py` file is a complete, working design generated by this skill. It demonstrates all the key features:
+When a design is described as "waterproof", the project targets **IP67** per IEC 60529:
 
-**What it is:** A two-piece waterproof enclosure for a Raspberry Pi Zero 2W, designed for marine bulkhead mounting.
+| Rating | Meaning |
+|--------|---------|
+| IP6x (dust) | Dust-tight — zero ingress after 8-hour test |
+| IPx7 (water) | Survives immersion at 1m depth for 30 minutes |
 
-**Key specs:**
-| Feature | Detail |
-|---------|--------|
-| External (with flange) | 93 × 58 × 27 mm |
-| Body | 77 × 42 × 23 mm |
-| Internal cavity | 71 × 36 × 20 mm |
-| Wall thickness | 3mm PETG |
-| Lid-to-base bolts | 4× M3 with heat-set inserts (OD 8mm corner bosses) |
-| PCB mounting | 4× M2.5 standoffs (58×23mm Pi Zero 2W pattern) |
-| Cable entry | PG7 cable gland boss (M12 thread, 18mm OD) |
-| Bulkhead mount | 4× M4 clearance holes in perimeter flange |
-| Corner radius | 2mm on all edges |
-| Sealing | Marine silicone between mating faces + lid lip alignment |
+Key design rules enforced during QA:
 
-**Generate the STL files:**
+- **Gasket compression 25–35%** of free height. Crush limiters (pillar tops) control this.
+- **Gasket must be continuous.** No bolt bosses or features breaking the seal perimeter.
+- **No fastener paths through the sealed volume.** Water wicks down threads. Bolts go outside.
+- **Through-bolt clamping direction matters.** Bolt head on lid → shaft through pillar → nut at flange base. Not the other way around.
+- **Tongue-and-groove or stepped mating surfaces.** Never flat-to-flat.
+- **All cable entries use IP67-rated glands.** One unsealed hole defeats the enclosure.
+- **Always write out the full assembly sequence.** If any step is physically impossible, redesign.
 
-```bash
-conda activate cadquery
-cd VibePrint3D/examples
-python pizero_housing.py
-```
+See `CLAUDE.md` for the complete IP67 specification and the design mistakes registry.
 
-This produces `pizero_housing_base.stl` and `pizero_housing_lid.stl`.
+## Reference Dimensions
 
-**View the result:**
+### Raspberry Pi Boards
 
-```bash
-python ../scripts/viewer.py pizero_housing_base.stl pizero_housing_lid.stl --title "Pi Zero 2W Housing"
-```
+| Board | L×W×H (mm) | Mount pattern | Mount hole |
+|-------|-----------|---------------|------------|
+| Pi Zero 2W | 65×30×5 | 58×23 | M2.5 |
+| Pi 4B / Pi 5 | 85×56×17 | 58×49 | M2.75 |
+| Pi Pico | 51×21×1 | 47×11.4 | M2 |
 
-**Preview (static 4-view):**
+### Cable Glands
 
-```bash
-python ../scripts/preview.py pizero_housing_base.stl preview.png --title "Pi Zero Housing — Base"
-```
+| Type | Thread | Cable range | Boss OD |
+|------|--------|-------------|---------|
+| PG7 | M12×1.5 | 3–6.5mm | 18mm |
+| PG9 | M16×1.5 | 4–8mm | 22mm |
+| PG11 | M18×1.5 | 5–10mm | 24mm |
+| PG13.5 | M20×1.5 | 6–12mm | 26mm |
 
-## How the Skill Works Under the Hood
+### Fasteners (FDM clearance holes)
 
-### CadQuery + OpenCASCADE
-
-[CadQuery](https://cadquery.readthedocs.io/) is a Python CAD library backed by the OpenCASCADE kernel — the same kernel used by FreeCAD and commercial CAD tools. It handles fillets, chamfers, booleans, and shells reliably, and produces scripts that are just Python.
-
-### Two Preview Systems
-
-| System | File | Who uses it | Purpose |
-|--------|------|-------------|---------|
-| `preview.py` | Static 4-view PNG | Claude (self-review) | Front/Right/Top/Iso views rendered with matplotlib |
-| `viewer.py` | Interactive HTML | You (inspection) | Three.js scene with orbit, zoom, wireframe, grid |
-
-Claude generates the static preview, examines it using vision, and checks it against a printability checklist (wall thickness, overhangs, watertightness, proportions). If something is wrong, Claude fixes the script and re-renders before showing you.
-
-The interactive viewer is for you — orbit the model, toggle wireframe, check dimensions in the HUD overlay.
-
-### Printability Checklist
-
-After every render, Claude checks:
-
-- **Geometry:** Shape matches description, proportions correct, booleans clean
-- **Printability:** Flat bottom, walls ≥ 1.2mm (≥ 2mm structural), no overhangs > 45°, no features < 0.4mm
-- **Parametric:** All dimensions as named variables, descriptive names, consistent units
-
-### Built-in Reference Data
-
-The skill includes dimension tables for common components:
-
-- **Raspberry Pi boards** (Zero 2W, 4B, 5, Pico) — board dims and mount patterns
-- **Cable glands** (PG7 through PG13.5) — thread spec, cable range, boss OD
-- **Fasteners** (M2.5 through M5) — clearance holes, head diameters, heat-set insert holes
+| Bolt | Clearance hole | SHCS head dia | Hex nut AF |
+|------|---------------|---------------|------------|
+| M2.5 | 2.8mm | 5mm | 5.0mm |
+| M3 | 3.4mm | 6mm | 5.5mm |
+| M4 | 4.5mm | 8mm | 7.0mm |
+| M5 | 5.5mm | 10mm | 8.0mm |
 
 ## Material Guide
 
-| Material | Best for | Notes |
+| Material | Use case | Notes |
 |----------|----------|-------|
-| **PLA** | Indoor, prototyping | Easy to print. Not UV/heat resistant. |
-| **PETG** | Marine, outdoor, structural | UV resistant, doesn't absorb water. Go-to for functional parts. |
-| **ABS/ASA** | High temp, automotive | ASA has better UV resistance. Needs enclosed printer. |
-| **TPU** | Gaskets, vibration damping | Flexible. |
-| **Nylon** | High strength, wear parts | Absorbs moisture — dry before printing. |
+| **PLA** | Prototypes, indoor | Easy to print. Not UV/heat resistant. |
+| **PETG** | Marine, outdoor, structural | UV resistant, low water absorption. Go-to for functional parts. |
+| **ABS/ASA** | High temp, automotive | ASA better UV resistance. Needs enclosed printer. |
+| **TPU** | Gaskets, vibration damping | Shore hardness matters — 68D is semi-rigid, 95A is flexible. |
+| **Nylon (PA)** | High strength, wear parts | Absorbs moisture — dry filament before printing. |
 
-## Limitations
+## Repository Structure
 
-- **Prismatic geometry only.** CadQuery excels at boxes, cylinders, chamfers, fillets. Not for organic/sculpted shapes.
-- **No assembly simulation.** Static geometry — no moving parts, interference checks, or stress analysis.
-- **FDM-focused.** Printability checks assume FDM (0.4mm nozzle). SLA/SLS users may need different tolerances.
-- **Boolean edge cases.** Complex intersections occasionally produce non-manifold geometry. The watertight check catches this.
+```
+VibePrint3D/
+├── SKILL.md          # Claude Code skill definition (installed to ~/.claude/skills/)
+├── CLAUDE.md         # Project rules, IP67 spec, design mistakes registry
+├── install.sh        # One-command skill installer
+├── scripts/
+│   ├── preview.py    # 4-view static PNG renderer (matplotlib + trimesh)
+│   └── viewer.py     # Interactive Three.js HTML viewer
+└── examples/
+    └── *.py          # Working design scripts (reference implementations)
+```
+
+Generated files (STL, STEP, PNG, HTML) are gitignored — only source scripts are committed.
 
 ## License
 
