@@ -30,6 +30,9 @@ eval "$(/opt/homebrew/Caskroom/miniforge/base/bin/conda shell.bash hook)" && con
 
 # Package STLs into a single 3MF with material assignments (for slicer import)
 eval "$(/opt/homebrew/Caskroom/miniforge/base/bin/conda shell.bash hook)" && conda activate cadquery && python scripts/export_3mf.py base.stl:PETG lid.stl:PETG gasket.stl:TPU -o output.3mf --title "Part Name"
+
+# FEA stress analysis (von Mises heatmap + safety factor)
+eval "$(/opt/homebrew/Caskroom/miniforge/base/bin/conda shell.bash hook)" && conda activate cadquery && python scripts/stress_analysis.py part.stl --material PETG --force 20 --direction="-z" --title "Part Name"
 ```
 
 ## Architecture
@@ -43,6 +46,8 @@ eval "$(/opt/homebrew/Caskroom/miniforge/base/bin/conda shell.bash hook)" && con
 - **`examples/`** — Working design scripts. `pizero_housing.py` is the reference example demonstrating multi-material enclosure design with through-bolt clamping, gasket grooves, cable glands, and interference checking.
 
 - **`scripts/export_3mf.py`** — Packages multiple STL parts into a single `.3mf` file with material (filament) assignments. Uses `lib3mf` to create proper 3MF with named mesh objects, base material groups, and display colors. Parts appear pre-named and color-coded when opened in Bambu Studio / PrusaSlicer. Supports `file.stl:MATERIAL` syntax (e.g., `base.stl:PETG gasket.stl:TPU`). Built-in materials: PETG, TPU, PLA, ASA, ABS, NYLON.
+
+- **`scripts/stress_analysis.py`** — Linear elastic FEA stress analysis. Gmsh (tet meshing) + scikit-fem (solver). Takes an STL, meshes it into tetrahedra, solves for displacement and von Mises stress, renders a 4-view heatmap PNG. Supports material presets (PETG, PLA, ABS, etc.), configurable loads and boundary conditions.
 
 - **`install.sh`** — Copies SKILL.md and scripts into `~/.claude/skills/cadquery-3dprint/`. Checks for conda/cadquery env.
 

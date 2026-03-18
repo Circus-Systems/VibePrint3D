@@ -149,7 +149,18 @@ python scripts/export_3mf.py base.stl:PETG lid.stl:PETG gasket.stl:TPU -o assemb
 
 See the [3MF section](#3mf-multi-part-assembly) below for full documentation.
 
-### Step 7: Iterate
+### Step 7: Stress Analysis (Optional)
+
+Use `/StressAnalysis` to run finite element analysis on any part. This:
+1. Volume-meshes the STL into tetrahedra (Gmsh)
+2. Solves linear elastic FEA (scikit-fem)
+3. Computes von Mises stress per element
+4. Renders a 4-view heatmap showing stress concentrations
+5. Reports safety factor vs material yield strength
+
+Target safety factor ≥ 2.0 for 3D-printed parts (FDM layer adhesion is weaker than bulk material).
+
+### Step 8: Iterate
 
 User gives feedback. Modify the script, rebuild, re-render, re-QA. Repeat until approved.
 
@@ -327,7 +338,8 @@ VibePrint3D/
 ├── scripts/
 │   ├── preview.py    # 4-view static PNG renderer (matplotlib + trimesh)
 │   ├── viewer.py     # Interactive Three.js HTML viewer
-│   └── export_3mf.py # STL → 3MF packager with material assignments (lib3mf)
+│   ├── export_3mf.py # STL → 3MF packager with material assignments (lib3mf)
+│   └── stress_analysis.py # FEA stress analysis (Gmsh + scikit-fem → von Mises heatmap)
 └── examples/
     └── *.py          # Working design scripts (reference implementations)
 ```
