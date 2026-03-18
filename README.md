@@ -38,7 +38,7 @@ conda create -n cadquery python=3.11 cadquery trimesh matplotlib pillow numpy -c
 
 # Install 3MF export support
 eval "$(/opt/homebrew/Caskroom/miniforge/base/bin/conda shell.bash hook)" && conda activate cadquery
-pip install py-lib3mf
+pip install lib3mf
 ```
 
 ### Install the Skill
@@ -134,7 +134,19 @@ python scripts/viewer.py base.stl lid.stl gasket.stl --title "Assembly"
 
 Self-contained HTML — no internet needed, all STL data embedded as base64. Multi-part support with distinct colors.
 
-### Step 6: Iterate
+### Step 6: Export 3MF for Slicer
+
+Package all parts into a single `.3mf` file with material assignments:
+
+```bash
+python scripts/export_3mf.py base.stl:PETG lid.stl:PETG gasket.stl:TPU -o assembly.3mf --title "My Part"
+```
+
+Each STL gets a named material with a display color. Open the `.3mf` in Bambu Studio / OrcaSlicer — parts appear pre-named and color-coded. No manual filament assignment needed.
+
+Built-in materials: PETG (grey), TPU (orange), PLA (white), ASA (light grey), ABS (black), NYLON (cream). Custom materials via `--material "MYMAT=#FF0000"`.
+
+### Step 7: Iterate
 
 User gives feedback. Modify the script, rebuild, re-render, re-QA. Repeat until approved.
 
@@ -155,14 +167,15 @@ Standard triangle mesh. One file per printable part. Import into any slicer.
 The 3MF format packages multiple parts into one file with material names and colors. This is the preferred format for multi-material prints.
 
 **How it works in VibePrint3D:**
-- CadQuery tessellates each part → vertices + faces
-- `py-lib3mf` writes a 3MF with named mesh objects, each assigned to a material with a display color
+- CadQuery exports each part as STL
+- `export_3mf.py` loads STLs via trimesh, creates a lib3mf model with named mesh objects
+- Each object is assigned to a base material group entry with a display color
 - The slicer imports one file with all parts pre-named and colored
 
 **Slicer compatibility:**
 - **OrcaSlicer** — correctly preserves per-object material assignments from standard 3MF
-- **Bambu Studio 2.5.x** — has a regression ([issue #9666](https://github.com/bambulab/BambuStudio/issues/9666)) that converts material assignments to per-triangle color painting on import. Parts still appear as separate colored objects, but filament assignment must be done manually in the slicer.
 - **PrusaSlicer / Cura** — standard 3MF import, separate objects with colors
+- **Bambu Studio** — imports parts as separate colored objects; filament assignment may need manual confirmation depending on version
 
 **Why 3MF over STL:**
 - Units are explicit (no ambiguity)
@@ -254,7 +267,8 @@ VibePrint3D/
 ├── install.sh        # One-command skill installer
 ├── scripts/
 │   ├── preview.py    # 4-view static PNG renderer (matplotlib + trimesh)
-│   └── viewer.py     # Interactive Three.js HTML viewer
+│   ├── viewer.py     # Interactive Three.js HTML viewer
+│   └── export_3mf.py # STL → 3MF packager with material assignments (lib3mf)
 └── examples/
     └── *.py          # Working design scripts (reference implementations)
 ```

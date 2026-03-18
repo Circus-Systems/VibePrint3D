@@ -19,7 +19,7 @@ Do NOT use system Python — it's too new for OCP wheels.
 ## Running Scripts
 
 ```bash
-# Run a CadQuery design script (generates STL/STEP files)
+# Run a CadQuery design script (generates STL files)
 eval "$(/opt/homebrew/Caskroom/miniforge/base/bin/conda shell.bash hook)" && conda activate cadquery && python examples/pizero_housing.py
 
 # Generate 4-view static preview (for self-review)
@@ -27,6 +27,9 @@ eval "$(/opt/homebrew/Caskroom/miniforge/base/bin/conda shell.bash hook)" && con
 
 # Generate interactive Three.js viewer (for user inspection, opens in browser)
 eval "$(/opt/homebrew/Caskroom/miniforge/base/bin/conda shell.bash hook)" && conda activate cadquery && python scripts/viewer.py part1.stl part2.stl --title "Assembly Name"
+
+# Package STLs into a single 3MF with material assignments (for slicer import)
+eval "$(/opt/homebrew/Caskroom/miniforge/base/bin/conda shell.bash hook)" && conda activate cadquery && python scripts/export_3mf.py base.stl:PETG lid.stl:PETG gasket.stl:TPU -o output.3mf --title "Part Name"
 ```
 
 ## Architecture
@@ -39,6 +42,8 @@ eval "$(/opt/homebrew/Caskroom/miniforge/base/bin/conda shell.bash hook)" && con
 
 - **`examples/`** — Working design scripts. `pizero_housing.py` is the reference example demonstrating multi-material enclosure design with through-bolt clamping, gasket grooves, cable glands, and interference checking.
 
+- **`scripts/export_3mf.py`** — Packages multiple STL parts into a single `.3mf` file with material (filament) assignments. Uses `lib3mf` to create proper 3MF with named mesh objects, base material groups, and display colors. Parts appear pre-named and color-coded when opened in Bambu Studio / PrusaSlicer. Supports `file.stl:MATERIAL` syntax (e.g., `base.stl:PETG gasket.stl:TPU`). Built-in materials: PETG, TPU, PLA, ASA, ABS, NYLON.
+
 - **`install.sh`** — Copies SKILL.md and scripts into `~/.claude/skills/cadquery-3dprint/`. Checks for conda/cadquery env.
 
 ## Design Script Conventions
@@ -49,7 +54,8 @@ All CadQuery design scripts must follow this structure:
 3. Derived dimensions computed from parameters (CAVITY_LENGTH = LENGTH - 2*WALL)
 4. Parts built as separate CadQuery objects in the same script for dimensional consistency
 5. Each part exported as a separate STL
-6. Print confirmation of exported files
+6. After STL export, run `export_3mf.py` to package all parts into a single `.3mf` with material assignments
+7. Print confirmation of exported files
 
 ## Key CadQuery Gotchas
 
